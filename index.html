@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Ra Button Control</title>
+    <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
+    <style>
+        :root {
+            --primary: #00ff9d;
+            --secondary: #0095ff;
+            --bg: rgba(16, 18, 27, 0.95);
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #0f0f15, #1a1a2e);
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--bg);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .control-btn {
+            min-height: 44px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(45deg, var(--glass), rgba(255, 255, 255, 0.1));
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn.active {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            box-shadow: 0 0 20px rgba(0, 255, 157, 0.3);
+        }
+
+        .control-btn:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 149, 255, 0.2);
+        }
+
+        .control-btn:active {
+            transform: scale(0.98);
+        }
+
+        .status-indicator {
+            text-align: center;
+            color: var(--primary);
+            margin-top: 20px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                border-radius: 16px;
+            }
+            
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="button-grid">
+            <button 
+                class="control-btn" 
+                id="button-0"
+                onclick="controlButton(0, !this.classList.contains('active'))"
+            >OFF</button>
+            
+            <button 
+                class="control-btn" 
+                id="button-1"
+                onclick="controlButton(1, !this.classList.contains('active'))"
+            >OFF</button>
+        </div>
+        <div class="status-indicator" id="sensor-0">Connecting...</div>
+    </div>
+
+    <script>
+        const eraWidget = new EraWidget();
+        let realtimeConfigs = new Array(1).fill(null);
+        let actionConfigs = new Array(4).fill(null);
+        let isConfigured = false;
+
+        eraWidget.init({
+            onConfiguration: (configuration) => {
+                console.log('E-Ra Configuration received:', configuration);
+                
+                if (configuration.realtime_configs?.[0]) {
+                    realtimeConfigs[0] = configuration.realtime_configs[0];
+                }
+
+                actionConfigs = [
+                    configuration.actions?.[0],
+                    configuration.actions?.[1],
+                    configuration.actions?.[2],
+                    configuration.actions?.[3]
+                ];
+
+                isConfigured = true;
+                document.getElementById('sensor-0').textContent = 'Connected';
+            },
+            onValues: (values) => {
+                realtimeConfigs.forEach((config, index) => {
+                    if (config && values[config.id]) {
+                        updateSensorDisplay(index, values[config.id].value);
+                    }
+                });
+            }
+        });
+
+        function controlButton(buttonIndex, isOn) {
+            if (!isConfigured) {
+                alert('Thiết bị chưa sẵn sàng!');
+                return;
+            }
+
+            const actionIndex = (buttonIndex * 2) + (isOn ? 0 : 1);
+            
+            if (actionConfigs[actionIndex]) {
+                eraWidget.triggerAction(actionConfigs[actionIndex].action, null, { value: isOn ? 1 : 0 });
+                updateButtonState(buttonIndex, isOn);
+            }
+        }
+
+        function updateButtonState(buttonIndex, isOn) {
+            const btn = document.getElementById(`button-${buttonIndex}`);
+            btn.classList.toggle('active', isOn);
+            btn.textContent = isOn ? 'ON' : 'OFF';
+        }
+
+        function updateSensorDisplay(sensorIndex, value) {
+            const sensor = document.getElementById(`sensor-${sensorIndex}`);
+            sensor.textContent = `Sensor: ${value}`;
+            sensor.style.color = value > 50 ? 'var(--primary)' : 'white';
+        }
+    </script>
+</body>
+</html>
